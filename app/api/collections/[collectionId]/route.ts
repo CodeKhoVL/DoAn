@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs";
-
+import { getAuth } from "@clerk/nextjs/server";
 import { connectToDB } from "@/lib/mongoDB";
 import Collection from "@/lib/models/Collection";
 import Product from "@/lib/models/Product";
@@ -33,7 +32,7 @@ export const POST = async (
   { params }: { params: { collectionId: string } }
 ) => {
   try {
-    const { userId } = auth();
+    const { userId } = getAuth(req); // 🔹 Dùng getAuth(req)
 
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
@@ -73,7 +72,7 @@ export const DELETE = async (
   { params }: { params: { collectionId: string } }
 ) => {
   try {
-    const { userId } = auth();
+    const { userId } = getAuth(req); // 🔹 Dùng getAuth(req)
 
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
@@ -87,7 +86,7 @@ export const DELETE = async (
       { collections: params.collectionId },
       { $pull: { collections: params.collectionId } }
     );
-    
+
     return new NextResponse("Collection is deleted", { status: 200 });
   } catch (err) {
     console.log("[collectionId_DELETE]", err);

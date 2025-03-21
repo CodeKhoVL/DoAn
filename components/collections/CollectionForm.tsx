@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-
 import { Separator } from "../ui/separator";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +20,14 @@ import ImageUpload from "../custom ui/ImageUpload";
 import { useState } from "react";
 import toast from "react-hot-toast";
 import Delete from "../custom ui/Delete";
+
+// Thêm định nghĩa kiểu CollectionType
+interface CollectionType {
+  _id: string;
+  title: string;
+  description: string;
+  image: string;
+}
 
 const formSchema = z.object({
   title: z.string().min(2).max(20),
@@ -48,31 +55,48 @@ const CollectionForm: React.FC<CollectionFormProps> = ({ initialData }) => {
         },
   });
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement> | React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyPress = (
+    e:
+      | React.KeyboardEvent<HTMLInputElement>
+      | React.KeyboardEvent<HTMLTextAreaElement>
+  ) => {
     if (e.key === "Enter") {
       e.preventDefault();
     }
-  }
-  
+  };
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setLoading(true);
       const url = initialData
         ? `/api/collections/${initialData._id}`
         : "/api/collections";
+
       const res = await fetch(url, {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(values),
       });
+
       if (res.ok) {
-        setLoading(false);
         toast.success(`Collection ${initialData ? "updated" : "created"}`);
-        window.location.href = "/collections";
+        // Chỉ sử dụng một cách để redirect
         router.push("/collections");
+      } else {
+        // Xử lý khi API trả về lỗi
+        const errorData = await res.json().catch(() => null);
+        toast.error(
+          errorData?.message || "Something went wrong! Please try again."
+        );
       }
     } catch (err) {
       console.log("[collections_POST]", err);
       toast.error("Something went wrong! Please try again.");
+    } finally {
+      // Luôn đảm bảo reset loading state
+      setLoading(false);
     }
   };
 
@@ -96,7 +120,11 @@ const CollectionForm: React.FC<CollectionFormProps> = ({ initialData }) => {
               <FormItem>
                 <FormLabel>Title</FormLabel>
                 <FormControl>
-                  <Input placeholder="Title" {...field} onKeyDown={handleKeyPress} />
+                  <Input
+                    placeholder="Title"
+                    {...field}
+                    onKeyDown={handleKeyPress}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -109,7 +137,12 @@ const CollectionForm: React.FC<CollectionFormProps> = ({ initialData }) => {
               <FormItem>
                 <FormLabel>Description</FormLabel>
                 <FormControl>
-                  <Textarea placeholder="Description" {...field} rows={5} onKeyDown={handleKeyPress} />
+                  <Textarea
+                    placeholder="Description"
+                    {...field}
+                    rows={5}
+                    onKeyDown={handleKeyPress}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -133,13 +166,18 @@ const CollectionForm: React.FC<CollectionFormProps> = ({ initialData }) => {
             )}
           />
           <div className="flex gap-10">
-            <Button type="submit" className="bg-blue-1 text-white">
-              Submit
+            <Button
+              type="submit"
+              className="bg-blue-1 text-white"
+              disabled={loading}
+            >
+              {loading ? "Submitting..." : "Submit"}
             </Button>
             <Button
               type="button"
               onClick={() => router.push("/collections")}
               className="bg-blue-1 text-white"
+              disabled={loading}
             >
               Discard
             </Button>

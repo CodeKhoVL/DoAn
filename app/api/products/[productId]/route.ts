@@ -1,7 +1,7 @@
 import Collection from "@/lib/models/Collection";
 import Product from "@/lib/models/Product";
 import { connectToDB } from "@/lib/mongoDB";
-import { auth } from "@clerk/nextjs";
+import { getAuth } from "@clerk/nextjs/server";
 
 import { NextRequest, NextResponse } from "next/server";
 
@@ -42,7 +42,7 @@ export const POST = async (
   { params }: { params: { productId: string } }
 ) => {
   try {
-    const { userId } = auth();
+    const { userId } = getAuth(req);
 
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
@@ -137,7 +137,7 @@ export const DELETE = async (
   { params }: { params: { productId: string } }
 ) => {
   try {
-    const { userId } = auth();
+    const { userId } = getAuth(req);
 
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
