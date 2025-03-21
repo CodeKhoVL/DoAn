@@ -68,9 +68,13 @@ const CollectionForm: React.FC<CollectionFormProps> = ({ initialData }) => {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setLoading(true);
+      console.log("Submitting values:", values);
+
       const url = initialData
         ? `/api/collections/${initialData._id}`
         : "/api/collections";
+
+      console.log("Submitting to URL:", url);
 
       const res = await fetch(url, {
         method: "POST",
@@ -80,22 +84,34 @@ const CollectionForm: React.FC<CollectionFormProps> = ({ initialData }) => {
         body: JSON.stringify(values),
       });
 
+      // Đọc response dưới dạng text trước
+      const responseText = await res.text();
+      console.log("Response status:", res.status);
+      console.log("Response text:", responseText);
+
+      // Sau đó mới thử parse JSON nếu có thể
+      let responseData;
+      try {
+        if (responseText) {
+          responseData = JSON.parse(responseText);
+        }
+      } catch (parseError) {
+        console.error("Error parsing response:", parseError);
+      }
+
       if (res.ok) {
         toast.success(`Collection ${initialData ? "updated" : "created"}`);
-        // Chỉ sử dụng một cách để redirect
         router.push("/collections");
       } else {
-        // Xử lý khi API trả về lỗi
-        const errorData = await res.json().catch(() => null);
+        // Hiển thị lỗi dưới dạng text nếu không parse được JSON
         toast.error(
-          errorData?.message || "Something went wrong! Please try again."
+          responseData?.message || responseText || "Unknown error occurred"
         );
       }
     } catch (err) {
-      console.log("[collections_POST]", err);
-      toast.error("Something went wrong! Please try again.");
+      console.error("Submit error:", err);
+      toast.error("Network error. Please try again.");
     } finally {
-      // Luôn đảm bảo reset loading state
       setLoading(false);
     }
   };

@@ -1,5 +1,5 @@
 {
-  "name": "borcella_admin",
+  "name": "LibraryAdmin",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -30,7 +30,7 @@
     "react-dom": "^18",
     "react-hook-form": "^7.54.2",
     "react-hot": "^0.0.1",
-    "react-hot-toast": "^2.4.1",
+    "react-hot-toast": "^2.5.2",
     "recharts": "^2.12.2",
     "stripe": "^14.19.0",
     "tailwind-merge": "^2.6.0",

@@ -1,4 +1,3 @@
-// app/api/webhook/clerk/route.ts
 import Customer from "@/lib/models/Customer";
 import Order from "@/lib/models/Order";
 import { connectToDB } from "@/lib/mongoDB";

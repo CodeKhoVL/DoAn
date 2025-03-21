@@ -14,8 +14,8 @@ export const GET = async (
     const collection = await Collection.findById(params.collectionId).populate({ path: "products", model: Product });
 
     if (!collection) {
-      return new NextResponse(
-        JSON.stringify({ message: "Collection not found" }),
+      return NextResponse.json(
+        { message: "Collection not found" },
         { status: 404 }
       );
     }
@@ -23,7 +23,10 @@ export const GET = async (
     return NextResponse.json(collection, { status: 200 });
   } catch (err) {
     console.log("[collectionId_GET]", err);
-    return new NextResponse("Internal error", { status: 500 });
+    return NextResponse.json(
+      { message: "Internal server error", error: err instanceof Error ? err.message : String(err) },
+      { status: 500 }
+    );
   }
 };
 
@@ -32,38 +35,66 @@ export const POST = async (
   { params }: { params: { collectionId: string } }
 ) => {
   try {
-    const { userId } = getAuth(req); // 🔹 Dùng getAuth(req)
-
-    if (!userId) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    // Thêm log để debug authentication
+    console.log("Starting collection update process");
+    
+    let userId;
+    try {
+      const auth = getAuth(req);
+      userId = auth.userId;
+      console.log("Authentication successful, userId:", userId);
+    } catch (authError) {
+      console.error("Authentication error:", authError);
+      return NextResponse.json(
+        { message: "Authentication failed", error: String(authError) },
+        { status: 401 }
+      );
     }
 
+    if (!userId) {
+      console.log("No userId found");
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    console.log("Connecting to database");
     await connectToDB();
 
+    console.log("Finding collection with ID:", params.collectionId);
     let collection = await Collection.findById(params.collectionId);
 
     if (!collection) {
-      return new NextResponse("Collection not found", { status: 404 });
+      console.log("Collection not found");
+      return NextResponse.json({ message: "Collection not found" }, { status: 404 });
     }
 
-    const { title, description, image } = await req.json();
+    console.log("Parsing request body");
+    const body = await req.json();
+    const { title, description, image } = body;
+    console.log("Request data:", { title, hasDescription: !!description, hasImage: !!image });
 
     if (!title || !image) {
-      return new NextResponse("Title and image are required", { status: 400 });
+      console.log("Missing required fields");
+      return NextResponse.json(
+        { message: "Title and image are required" },
+        { status: 400 }
+      );
     }
 
+    console.log("Updating collection");
     collection = await Collection.findByIdAndUpdate(
       params.collectionId,
       { title, description, image },
       { new: true }
     );
 
-    await collection.save();
-
+    console.log("Collection updated successfully");
     return NextResponse.json(collection, { status: 200 });
   } catch (err) {
-    console.log("[collectionId_POST]", err);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error("[collectionId_POST] Error:", err);
+    return NextResponse.json(
+      { message: "Internal server error", error: err instanceof Error ? err.message : String(err) },
+      { status: 500 }
+    );
   }
 };
 
@@ -72,10 +103,23 @@ export const DELETE = async (
   { params }: { params: { collectionId: string } }
 ) => {
   try {
-    const { userId } = getAuth(req); // 🔹 Dùng getAuth(req)
+    let userId;
+    try {
+      const auth = getAuth(req);
+      userId = auth.userId;
+    } catch (authError) {
+      console.error("Authentication error:", authError);
+      return NextResponse.json(
+        { message: "Authentication failed" },
+        { status: 401 }
+      );
+    }
 
     if (!userId) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return NextResponse.json(
+        { message: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
     await connectToDB();
@@ -87,10 +131,16 @@ export const DELETE = async (
       { $pull: { collections: params.collectionId } }
     );
 
-    return new NextResponse("Collection is deleted", { status: 200 });
+    return NextResponse.json(
+      { message: "Collection deleted successfully" },
+      { status: 200 }
+    );
   } catch (err) {
     console.log("[collectionId_DELETE]", err);
-    return new NextResponse("Internal error", { status: 500 });
+    return NextResponse.json(
+      { message: "Internal server error", error: err instanceof Error ? err.message : String(err) },
+      { status: 500 }
+    );
   }
 };
 

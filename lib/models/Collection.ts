@@ -17,16 +17,6 @@ const collectionSchema = new mongoose.Schema({
       ref: "Product",
     }
   ],
-  // Thêm trường để lưu Clerk ID của người tạo
-  createdBy: {
-    type: String,
-    required: true,
-  },
-  // Nếu bạn có User model và muốn tham chiếu trực tiếp
-  user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-  },
   createdAt: {
     type: Date,
     default: Date.now,
@@ -35,8 +25,8 @@ const collectionSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   }
-});
+})
 
-const Collection = mongoose.models.Collection || mongoose.model("Collection", collectionSchema);
+const Collection =mongoose.models.Collection || mongoose.model("Collection", collectionSchema);
 
 export default Collection;

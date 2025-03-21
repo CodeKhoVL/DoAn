@@ -235,10 +235,10 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData }) => {
               name="category"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Category</FormLabel>
+                  <FormLabel>Thể loại</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Category"
+                      placeholder="Thể loại"
                       {...field}
                       onKeyDown={handleKeyPress}
                     />
