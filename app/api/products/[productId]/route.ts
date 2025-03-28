@@ -5,6 +5,23 @@ import { getAuth } from "@clerk/nextjs/server";
 
 import { NextRequest, NextResponse } from "next/server";
 
+// Hàm tiện ích để đảm bảo giá trị là mảng
+const ensureArray = (value: any): any[] => {
+  if (!value) return [];
+  if (!Array.isArray(value)) return [];
+  return value;
+};
+
+// Hàm chuyển đổi ObjectId thành string
+const normalizeId = (id: any): string | null => {
+  if (!id) return null;
+  if (typeof id === 'string') return id;
+  if (typeof id === 'object' && id._id) {
+    return typeof id._id === 'string' ? id._id : String(id._id);
+  }
+  return String(id);
+};
+
 export const GET = async (
   req: NextRequest,
   { params }: { params: { productId: string } }
@@ -23,7 +40,16 @@ export const GET = async (
         { status: 404 }
       );
     }
-    return new NextResponse(JSON.stringify(product), {
+    
+    // Đảm bảo product có cấu trúc nhất quán
+    const safeProduct = product.toObject();
+    safeProduct.collections = ensureArray(safeProduct.collections);
+    safeProduct.media = ensureArray(safeProduct.media);
+    safeProduct.tags = ensureArray(safeProduct.tags);
+    safeProduct.sizes = ensureArray(safeProduct.sizes);
+    safeProduct.colors = ensureArray(safeProduct.colors);
+    
+    return new NextResponse(JSON.stringify(safeProduct), {
       status: 200,
       headers: {
         "Access-Control-Allow-Origin": `${process.env.ECOMMERCE_STORE_URL}`,
@@ -59,64 +85,90 @@ export const POST = async (
       );
     }
 
+    const body = await req.json();
+    
     const {
       title,
       description,
       media,
       category,
-      collections,
+      collections: rawCollections,
       tags,
       sizes,
       colors,
       price,
       expense,
-    } = await req.json();
+    } = body;
+
+    // Đảm bảo collections là mảng
+    const collections = ensureArray(rawCollections);
 
     if (!title || !description || !media || !category || !price || !expense) {
-      return new NextResponse("Not enough data to create a new product", {
+      return new NextResponse("Not enough data to update product", {
         status: 400,
       });
     }
 
+    // Chuẩn hóa collections hiện tại của product
+    const normalizedProductCollections = ensureArray(product.collections).map(
+      collectionId => normalizeId(collectionId)
+    ).filter(Boolean);
+
+    // Tìm collections được thêm vào và xóa đi
     const addedCollections = collections.filter(
-      (collectionId: string) => !product.collections.includes(collectionId)
+      collectionId => !normalizedProductCollections.includes(normalizeId(collectionId))
     );
-    // included in new data, but not included in the previous data
 
-    const removedCollections = product.collections.filter(
-      (collectionId: string) => !collections.includes(collectionId)
+    const removedCollections = normalizedProductCollections.filter(
+      collectionId => !collections.map(id => normalizeId(id)).includes(collectionId)
     );
-    // included in previous data, but not included in the new data
 
-    // Update collections
-    await Promise.all([
-      // Update added collections with this product
-      ...addedCollections.map((collectionId: string) =>
-        Collection.findByIdAndUpdate(collectionId, {
-          $push: { products: product._id },
-        })
-      ),
+    // Xử lý collections
+    try {
+      // Xử lý collections được thêm vào
+      if (addedCollections.length > 0) {
+        await Promise.all(
+          addedCollections.map(async (collectionId) => {
+            const id = normalizeId(collectionId);
+            if (!id) return;
+            
+            await Collection.findByIdAndUpdate(id, {
+              $addToSet: { products: product._id }, // Sử dụng $addToSet để tránh trùng lặp
+            });
+          })
+        );
+      }
+      
+      // Xử lý collections bị xóa đi
+      if (removedCollections.length > 0) {
+        await Promise.all(
+          removedCollections.map(async (collectionId) => {
+            const id = normalizeId(collectionId);
+            if (!id) return;
+            
+            await Collection.findByIdAndUpdate(id, {
+              $pull: { products: product._id },
+            });
+          })
+        );
+      }
+    } catch (collectionsError) {
+      console.error("Error updating collections:", collectionsError);
+      // Tiếp tục xử lý mà không dừng lại
+    }
 
-      // Update removed collections without this product
-      ...removedCollections.map((collectionId: string) =>
-        Collection.findByIdAndUpdate(collectionId, {
-          $pull: { products: product._id },
-        })
-      ),
-    ]);
-
-    // Update product
+    // Cập nhật sản phẩm
     const updatedProduct = await Product.findByIdAndUpdate(
       product._id,
       {
         title,
         description,
-        media,
+        media: ensureArray(media),
         category,
         collections,
-        tags,
-        sizes,
-        colors,
+        tags: ensureArray(tags),
+        sizes: ensureArray(sizes),
+        colors: ensureArray(colors),
         price,
         expense,
       },
@@ -154,16 +206,28 @@ export const DELETE = async (
       );
     }
 
-    await Product.findByIdAndDelete(product._id);
+    // Xóa sản phẩm khỏi tất cả collections
+    try {
+      const normalizedCollections = ensureArray(product.collections)
+        .map(collectionId => normalizeId(collectionId))
+        .filter(Boolean);
+        
+      if (normalizedCollections.length > 0) {
+        await Promise.all(
+          normalizedCollections.map(async (collectionId) => {
+            await Collection.findByIdAndUpdate(collectionId, {
+              $pull: { products: product._id },
+            });
+          })
+        );
+      }
+    } catch (error) {
+      console.error("Error removing product from collections:", error);
+      // Tiếp tục xử lý mà không dừng lại
+    }
 
-    // Update collections
-    await Promise.all(
-      product.collections.map((collectionId: string) =>
-        Collection.findByIdAndUpdate(collectionId, {
-          $pull: { products: product._id },
-        })
-      )
-    );
+    // Xóa sản phẩm
+    await Product.findByIdAndDelete(product._id);
 
     return new NextResponse(JSON.stringify({ message: "Product deleted" }), {
       status: 200,
@@ -175,4 +239,3 @@ export const DELETE = async (
 };
 
 export const dynamic = "force-dynamic";
-

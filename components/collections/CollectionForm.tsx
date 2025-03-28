@@ -124,7 +124,7 @@ const CollectionForm: React.FC<CollectionFormProps> = ({ initialData }) => {
           <Delete id={initialData._id} item="collection" />
         </div>
       ) : (
-        <p className="text-heading2-bold">Tạo sản phẩm</p>
+        <p className="text-heading2-bold">Tạo danh mục</p>
       )}
       <Separator className="bg-grey-1 mt-4 mb-7" />
       <Form {...form}>
@@ -187,7 +187,8 @@ const CollectionForm: React.FC<CollectionFormProps> = ({ initialData }) => {
               className="bg-blue-1 text-white"
               disabled={loading}
             >
-              {loading ? "Submitting..." : "Submit"}
+              Thao tác
+              {loading ? "Submitting..." : ""}
             </Button>
             <Button
               type="button"
@@ -195,7 +196,7 @@ const CollectionForm: React.FC<CollectionFormProps> = ({ initialData }) => {
               className="bg-blue-1 text-white"
               disabled={loading}
             >
-              Discard
+              Hủy bỏ
             </Button>
           </div>
         </form>

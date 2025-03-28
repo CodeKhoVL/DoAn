@@ -11,20 +11,38 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from "@/components/ui/command";
-import { useState } from "react";
+import { useState, useEffect, forwardRef } from "react";
 import { Badge } from "../ui/badge";
 import { X } from "lucide-react";
 
+// Đảm bảo một giá trị luôn là mảng
+const ensureArray = (arr: any): any[] => {
+  if (!arr) return [];
+  if (!Array.isArray(arr)) return [];
+  return arr;
+};
+
+// Kiểm tra collection hợp lệ
+const isValidCollection = (collection: any): boolean => {
+  return Boolean(
+    collection &&
+      typeof collection === "object" &&
+      collection._id &&
+      collection.title
+  );
+};
+
 interface MultiSelectProps {
   placeholder: string;
-  collections: CollectionType[];
-  value: string[];
+  collections: any;
+  value: any;
   onChange: (value: string) => void;
   onRemove: (value: string) => void;
 }
 
+// Component MultiSelect hoàn toàn đơn giản hóa để tránh các vấn đề với cmdk
 const MultiSelect: React.FC<MultiSelectProps> = ({
-  placeholder,
+  placeholder = "Search...",
   collections,
   value,
   onChange,
@@ -33,59 +51,119 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
   const [inputValue, setInputValue] = useState("");
   const [open, setOpen] = useState(false);
 
-  let selected: CollectionType[];
+  // Đảm bảo dữ liệu an toàn
+  const safeCollections = ensureArray(collections).filter(isValidCollection);
+  const safeValue = ensureArray(value);
 
-  if (value.length === 0) {
-    selected = [];
-  } else {
-    selected = value.map((id) =>
-      collections.find((collection) => collection._id === id)
-    ) as CollectionType[];
+  // Tìm các collection đã chọn
+  const selected = safeCollections.filter((collection) =>
+    safeValue.includes(collection._id)
+  );
+
+  // Tìm các collection có thể chọn
+  const selectables = safeCollections.filter(
+    (collection) => !safeValue.includes(collection._id)
+  );
+
+  // Tránh sử dụng CMDK Command nếu có vấn đề
+  if (typeof window !== "undefined" && (window as any).__DISABLE_CMDK__) {
+    // Fallback UI không sử dụng Command
+    return (
+      <div className="border rounded-md p-2">
+        <div className="flex flex-wrap gap-1 mb-2">
+          {selected.map((collection) => (
+            <div
+              key={collection._id}
+              className="bg-blue-100 text-blue-800 px-2 py-1 rounded-md flex items-center text-sm"
+            >
+              {collection.title}
+              <button
+                type="button"
+                className="ml-1 text-blue-500 hover:text-red-500"
+                onClick={() => onRemove(collection._id)}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <input
+          type="text"
+          placeholder={placeholder}
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 100)}
+          className="w-full border rounded-md p-2"
+        />
+
+        {open && selectables.length > 0 && (
+          <div className="mt-1 border rounded-md shadow-md max-h-48 overflow-y-auto">
+            {selectables.map((collection) => (
+              <div
+                key={collection._id}
+                className="p-2 hover:bg-gray-100 cursor-pointer"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  onChange(collection._id);
+                  setInputValue("");
+                }}
+              >
+                {collection.title}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   }
 
-  const selectables = collections.filter((collection) => !selected.includes(collection)); 
-
+  // UI sử dụng CMDK Command
   return (
-    <Command className="overflow-visible bg-white">
-      <div className="flex gap-1 flex-wrap border rounded-md">
+    <div className="relative w-full">
+      <div className="flex flex-wrap gap-1 border rounded-md p-2">
         {selected.map((collection) => (
-          <Badge key={collection._id}>
+          <Badge key={collection._id} className="bg-blue-100 text-blue-800">
             {collection.title}
-            <button type="button" className="ml-1 hover:text-red-1" onClick={() => onRemove(collection._id)}>
+            <button
+              type="button"
+              className="ml-1 hover:text-red-500"
+              onClick={() => onRemove(collection._id)}
+            >
               <X className="h-3 w-3" />
             </button>
           </Badge>
         ))}
 
-        <CommandInput
+        <input
+          className="flex-1 outline-none border-none"
           placeholder={placeholder}
           value={inputValue}
-          onValueChange={setInputValue}
-          onBlur={() => setOpen(false)}
+          onChange={(e) => setInputValue(e.target.value)}
           onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 100)}
         />
       </div>
 
-      <div className="relative mt-2">
-        {open && (
-          <CommandGroup className="absolute w-full z-30 top-0 overflow-auto border rounded-md shadow-md">
-            {selectables.map((collection) => (
-              <CommandItem
-                key={collection._id}
-                onMouseDown={(e) => e.preventDefault()}
-                onSelect={() => {
-                  onChange(collection._id);
-                  setInputValue("");
-                }}
-                className="hover:bg-grey-2 cursor-pointer"
-              >
-                {collection.title}
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        )}
-      </div>
-    </Command>
+      {open && selectables.length > 0 && (
+        <div className="absolute w-full z-30 top-full mt-1 overflow-auto border rounded-md shadow-md bg-white max-h-60">
+          {selectables.map((collection) => (
+            <div
+              key={collection._id}
+              className="p-2 hover:bg-gray-100 cursor-pointer"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                onChange(collection._id);
+                setInputValue("");
+              }}
+            >
+              {collection.title}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 };
 

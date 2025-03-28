@@ -39,55 +39,185 @@ const formSchema = z.object({
 });
 
 interface ProductFormProps {
-  initialData?: ProductType | null; //Must have "?" to make it optional
+  initialData?: ProductType | null; // Must have "?" to make it optional
 }
+
+// Kiểm tra xem một giá trị có phải là mảng không và trả về mảng an toàn
+const ensureArray = (value: any): any[] => {
+  if (!value) return [];
+  if (!Array.isArray(value)) return [];
+  return value;
+};
+
+// Đảm bảo giá trị là số
+const ensureNumber = (value: any): number => {
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? 0.1 : parsed;
+  }
+  if (value && typeof value === "object") {
+    // Xử lý trường hợp Decimal128 từ MongoDB
+    if (value.toString) {
+      try {
+        const parsed = parseFloat(value.toString());
+        return isNaN(parsed) ? 0.1 : parsed;
+      } catch (error) {
+        return 0.1;
+      }
+    }
+  }
+  return 0.1;
+};
+
+// Trích xuất ID từ collection (xử lý cả trường hợp đối tượng hoặc string)
+const extractId = (item: any): string | null => {
+  if (!item) return null;
+  if (typeof item === "string") return item;
+  if (typeof item === "object" && item._id) {
+    return typeof item._id === "string" ? item._id : String(item._id);
+  }
+  return null;
+};
 
 const ProductForm: React.FC<ProductFormProps> = ({ initialData }) => {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [collections, setCollections] = useState<CollectionType[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
+  // Lấy danh sách collections với xử lý lỗi
   const getCollections = async () => {
     try {
+      console.log("Fetching collections...");
+      setError(null);
+
       const res = await fetch("/api/collections", {
         method: "GET",
       });
+
+      if (!res.ok) {
+        console.error(`API error (${res.status})`);
+        setError(`Error fetching collections: ${res.status}`);
+        setCollections([]);
+        setLoading(false);
+        return;
+      }
+
       const data = await res.json();
-      setCollections(data);
-      setLoading(false);
+
+      if (!Array.isArray(data)) {
+        console.error("Collections API did not return an array:", data);
+        setError("API data format error");
+        setCollections([]);
+      } else {
+        const validCollections = data.filter(
+          (item) => item && typeof item === "object" && item._id && item.title
+        );
+        console.log(`Found ${validCollections.length} valid collections`);
+        setCollections(validCollections);
+      }
     } catch (err) {
-      console.log("[collections_GET]", err);
-      toast.error("Something went wrong! Please try again.");
+      console.error("[collections_GET]", err);
+      setError(err instanceof Error ? err.message : "Unknown error");
+      setCollections([]);
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Lấy collections khi component mount
   useEffect(() => {
     getCollections();
   }, []);
 
+  // Log initialData để debug
+  useEffect(() => {
+    if (initialData) {
+      console.log("Initial data:", initialData);
+      console.log("initialData.collections:", initialData.collections);
+    }
+  }, [initialData]);
+
+  // Chuẩn bị giá trị mặc định an toàn
+  const getDefaultValues = () => {
+    if (!initialData) {
+      console.log("Using empty default values");
+      return {
+        title: "",
+        description: "",
+        media: [],
+        category: "",
+        collections: [],
+        tags: [],
+        sizes: [],
+        colors: [],
+        price: 0.1,
+        expense: 0.1,
+      };
+    }
+
+    try {
+      console.log("Creating form values from initialData");
+
+      // Xử lý collections một cách an toàn
+      let collectionsArray: string[] = [];
+
+      if (initialData.collections) {
+        try {
+          collectionsArray = ensureArray(initialData.collections)
+            .map((collection) => extractId(collection))
+            .filter(Boolean) as string[];
+
+          console.log("Extracted collection IDs:", collectionsArray);
+        } catch (error) {
+          console.error("Error processing collections:", error);
+          collectionsArray = [];
+        }
+      }
+
+      return {
+        title: initialData.title || "",
+        description: initialData.description || "",
+        media: ensureArray(initialData.media),
+        category: initialData.category || "",
+        collections: collectionsArray,
+        tags: ensureArray(initialData.tags),
+        sizes: ensureArray(initialData.sizes),
+        colors: ensureArray(initialData.colors),
+        price: ensureNumber(initialData.price),
+        expense: ensureNumber(initialData.expense),
+      };
+    } catch (error) {
+      console.error("Error creating default values:", error);
+      return {
+        title: "",
+        description: "",
+        media: [],
+        category: "",
+        collections: [],
+        tags: [],
+        sizes: [],
+        colors: [],
+        price: 0.1,
+        expense: 0.1,
+      };
+    }
+  };
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: initialData
-      ? {
-          ...initialData,
-          collections: initialData.collections.map(
-            (collection) => collection._id
-          ),
-        }
-      : {
-          title: "",
-          description: "",
-          media: [],
-          category: "",
-          collections: [],
-          tags: [],
-          sizes: [],
-          colors: [],
-          price: 0.1,
-          expense: 0.1,
-        },
+    defaultValues: getDefaultValues(),
   });
+
+  // Log form values khi chúng thay đổi
+  useEffect(() => {
+    const subscription = form.watch((value) => {
+      console.log("Form values changed:", value);
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
 
   const handleKeyPress = (
     e:
@@ -101,37 +231,75 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData }) => {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
+      // Đảm bảo price và expense là số
+      const dataToSubmit = {
+        ...values,
+        price: ensureNumber(values.price),
+        expense: ensureNumber(values.expense),
+      };
+
+      console.log("Submitting form with values:", dataToSubmit);
       setLoading(true);
+
       const url = initialData
         ? `/api/products/${initialData._id}`
         : "/api/products";
+
       const res = await fetch(url, {
         method: "POST",
-        body: JSON.stringify(values),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(dataToSubmit),
       });
+
       if (res.ok) {
-        setLoading(false);
         toast.success(`Product ${initialData ? "updated" : "created"}`);
         window.location.href = "/products";
         router.push("/products");
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        console.error("API error:", errorData);
+        toast.error(errorData.message || "Failed to save product");
       }
     } catch (err) {
-      console.log("[products_POST]", err);
+      console.error("[products_POST]", err);
       toast.error("Something went wrong! Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  return loading ? (
-    <Loader />
-  ) : (
+  if (loading) {
+    return <Loader />;
+  }
+
+  if (error) {
+    return (
+      <div className="p-10">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          <p className="font-bold">lỗi khi tải collection</p>
+          <p>{error}</p>
+          <button
+            onClick={() => getCollections()}
+            className="mt-2 bg-blue-1 text-white px-4 py-2 rounded"
+          >
+            Thử lại
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
     <div className="p-10">
       {initialData ? (
         <div className="flex items-center justify-between">
-          <p className="text-heading2-bold">Edit Product</p>
+          <p className="text-heading2-bold">Chỉnh sửa sản phẩm</p>
           <Delete id={initialData._id} item="product" />
         </div>
       ) : (
-        <p className="text-heading2-bold">Create Product</p>
+        <p className="text-heading2-bold">Tạo sản phẩm</p>
       )}
       <Separator className="bg-grey-1 mt-4 mb-7" />
       <Form {...form}>
@@ -141,7 +309,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData }) => {
             name="title"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Title</FormLabel>
+                <FormLabel>Tên sách</FormLabel>
                 <FormControl>
                   <Input
                     placeholder="Title"
@@ -158,7 +326,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData }) => {
             name="description"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Description</FormLabel>
+                <FormLabel>Mô tả</FormLabel>
                 <FormControl>
                   <Textarea
                     placeholder="Description"
@@ -174,71 +342,108 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData }) => {
           <FormField
             control={form.control}
             name="media"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Image</FormLabel>
-                <FormControl>
-                  <ImageUpload
-                    value={field.value}
-                    onChange={(url) => field.onChange([...field.value, url])}
-                    onRemove={(url) =>
-                      field.onChange([
-                        ...field.value.filter((image) => image !== url),
-                      ])
-                    }
-                  />
-                </FormControl>
-                <FormMessage className="text-red-1" />
-              </FormItem>
-            )}
+            render={({ field }) => {
+              // Đảm bảo field.value là mảng
+              const safeValue = ensureArray(field.value);
+
+              return (
+                <FormItem>
+                  <FormLabel>Ảnh</FormLabel>
+                  <FormControl>
+                    <ImageUpload
+                      value={safeValue}
+                      onChange={(url) => {
+                        field.onChange([...safeValue, url]);
+                      }}
+                      onRemove={(url) => {
+                        field.onChange(
+                          safeValue.filter((image) => image !== url)
+                        );
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage className="text-red-1" />
+                </FormItem>
+              );
+            }}
           />
 
           <div className="md:grid md:grid-cols-3 gap-8">
             <FormField
               control={form.control}
               name="price"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Price ($)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      placeholder="Price"
-                      {...field}
-                      onKeyDown={handleKeyPress}
-                    />
-                  </FormControl>
-                  <FormMessage className="text-red-1" />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                // Đảm bảo giá trị là số
+                const value =
+                  typeof field.value === "number"
+                    ? field.value
+                    : parseFloat(String(field.value)) || 0.1;
+
+                return (
+                  <FormItem>
+                    <FormLabel>Giá</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0.1"
+                        placeholder="Price"
+                        value={value}
+                        onChange={(e) => {
+                          // Chuyển đổi giá trị input thành số
+                          const numValue = parseFloat(e.target.value) || 0.1;
+                          field.onChange(numValue);
+                        }}
+                        onKeyDown={handleKeyPress}
+                      />
+                    </FormControl>
+                    <FormMessage className="text-red-1" />
+                  </FormItem>
+                );
+              }}
             />
             <FormField
               control={form.control}
               name="expense"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Expense ($)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      placeholder="Expense"
-                      {...field}
-                      onKeyDown={handleKeyPress}
-                    />
-                  </FormControl>
-                  <FormMessage className="text-red-1" />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                // Đảm bảo giá trị là số
+                const value =
+                  typeof field.value === "number"
+                    ? field.value
+                    : parseFloat(String(field.value)) || 0.1;
+
+                return (
+                  <FormItem>
+                    <FormLabel>Expense</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0.1"
+                        placeholder="Expense"
+                        value={value}
+                        onChange={(e) => {
+                          // Chuyển đổi giá trị input thành số
+                          const numValue = parseFloat(e.target.value) || 0.1;
+                          field.onChange(numValue);
+                        }}
+                        onKeyDown={handleKeyPress}
+                      />
+                    </FormControl>
+                    <FormMessage className="text-red-1" />
+                  </FormItem>
+                );
+              }}
             />
             <FormField
               control={form.control}
               name="category"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Thể loại</FormLabel>
+                  <FormLabel>Tác giả</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Thể loại"
+                      placeholder="Tác giả"
                       {...field}
                       onKeyDown={handleKeyPress}
                     />
@@ -250,118 +455,136 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData }) => {
             <FormField
               control={form.control}
               name="tags"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tags</FormLabel>
-                  <FormControl>
-                    <MultiText
-                      placeholder="Tags"
-                      value={field.value}
-                      onChange={(tag) => field.onChange([...field.value, tag])}
-                      onRemove={(tagToRemove) =>
-                        field.onChange([
-                          ...field.value.filter((tag) => tag !== tagToRemove),
-                        ])
-                      }
-                    />
-                  </FormControl>
-                  <FormMessage className="text-red-1" />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const safeValue = ensureArray(field.value);
+
+                return (
+                  <FormItem>
+                    <FormLabel>Thể loại</FormLabel>
+                    <FormControl>
+                      <MultiText
+                        placeholder="Thể loại"
+                        value={safeValue}
+                        onChange={(tag) => {
+                          field.onChange([...safeValue, tag]);
+                        }}
+                        onRemove={(tagToRemove) => {
+                          field.onChange(
+                            safeValue.filter((tag) => tag !== tagToRemove)
+                          );
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage className="text-red-1" />
+                  </FormItem>
+                );
+              }}
             />
             {collections.length > 0 && (
               <FormField
                 control={form.control}
                 name="collections"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Collections</FormLabel>
-                    <FormControl>
-                      <MultiSelect
-                        placeholder="Collections"
-                        collections={collections}
-                        value={field.value}
-                        onChange={(_id) =>
-                          field.onChange([...field.value, _id])
-                        }
-                        onRemove={(idToRemove) =>
-                          field.onChange([
-                            ...field.value.filter(
-                              (collectionId) => collectionId !== idToRemove
-                            ),
-                          ])
-                        }
-                      />
-                    </FormControl>
-                    <FormMessage className="text-red-1" />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  // Đảm bảo field.value là mảng
+                  const safeValue = ensureArray(field.value);
+
+                  console.log("Collections field value:", safeValue);
+
+                  return (
+                    <FormItem>
+                      <FormLabel>Danh mục</FormLabel>
+                      <FormControl>
+                        <MultiSelect
+                          placeholder="Collections"
+                          collections={collections}
+                          value={safeValue}
+                          onChange={(_id) => {
+                            // Kiểm tra và thêm ID mới nếu chưa tồn tại
+                            if (!safeValue.includes(_id)) {
+                              field.onChange([...safeValue, _id]);
+                            }
+                          }}
+                          onRemove={(idToRemove) => {
+                            field.onChange(
+                              safeValue.filter((id) => id !== idToRemove)
+                            );
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage className="text-red-1" />
+                    </FormItem>
+                  );
+                }}
               />
             )}
             <FormField
               control={form.control}
               name="colors"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Colors</FormLabel>
-                  <FormControl>
-                    <MultiText
-                      placeholder="Colors"
-                      value={field.value}
-                      onChange={(color) =>
-                        field.onChange([...field.value, color])
-                      }
-                      onRemove={(colorToRemove) =>
-                        field.onChange([
-                          ...field.value.filter(
-                            (color) => color !== colorToRemove
-                          ),
-                        ])
-                      }
-                    />
-                  </FormControl>
-                  <FormMessage className="text-red-1" />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const safeValue = ensureArray(field.value);
+
+                return (
+                  <FormItem>
+                    <FormLabel>Số tập</FormLabel>
+                    <FormControl>
+                      <MultiText
+                        placeholder="số tập"
+                        value={safeValue}
+                        onChange={(color) => {
+                          field.onChange([...safeValue, color]);
+                        }}
+                        onRemove={(colorToRemove) => {
+                          field.onChange(
+                            safeValue.filter((color) => color !== colorToRemove)
+                          );
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage className="text-red-1" />
+                  </FormItem>
+                );
+              }}
             />
             <FormField
               control={form.control}
               name="sizes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Sizes</FormLabel>
-                  <FormControl>
-                    <MultiText
-                      placeholder="Sizes"
-                      value={field.value}
-                      onChange={(size) =>
-                        field.onChange([...field.value, size])
-                      }
-                      onRemove={(sizeToRemove) =>
-                        field.onChange([
-                          ...field.value.filter(
-                            (size) => size !== sizeToRemove
-                          ),
-                        ])
-                      }
-                    />
-                  </FormControl>
-                  <FormMessage className="text-red-1" />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const safeValue = ensureArray(field.value);
+
+                return (
+                  <FormItem>
+                    <FormLabel>Số phần</FormLabel>
+                    <FormControl>
+                      <MultiText
+                        placeholder="Số Phân"
+                        value={safeValue}
+                        onChange={(size) => {
+                          field.onChange([...safeValue, size]);
+                        }}
+                        onRemove={(sizeToRemove) => {
+                          field.onChange(
+                            safeValue.filter((size) => size !== sizeToRemove)
+                          );
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage className="text-red-1" />
+                  </FormItem>
+                );
+              }}
             />
           </div>
 
           <div className="flex gap-10">
             <Button type="submit" className="bg-blue-1 text-white">
-              Submit
+              Xác nhận
             </Button>
             <Button
               type="button"
               onClick={() => router.push("/products")}
               className="bg-blue-1 text-white"
             >
-              Discard
+              Hủy bỏ
             </Button>
           </div>
         </form>
