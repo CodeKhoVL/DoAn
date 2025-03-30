@@ -402,39 +402,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData }) => {
                 );
               }}
             />
-            <FormField
-              control={form.control}
-              name="expense"
-              render={({ field }) => {
-                // Đảm bảo giá trị là số
-                const value =
-                  typeof field.value === "number"
-                    ? field.value
-                    : parseFloat(String(field.value)) || 0.1;
 
-                return (
-                  <FormItem>
-                    <FormLabel>Expense</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0.1"
-                        placeholder="Expense"
-                        value={value}
-                        onChange={(e) => {
-                          // Chuyển đổi giá trị input thành số
-                          const numValue = parseFloat(e.target.value) || 0.1;
-                          field.onChange(numValue);
-                        }}
-                        onKeyDown={handleKeyPress}
-                      />
-                    </FormControl>
-                    <FormMessage className="text-red-1" />
-                  </FormItem>
-                );
-              }}
-            />
             <FormField
               control={form.control}
               name="category"
