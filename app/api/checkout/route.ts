@@ -23,27 +23,35 @@ export async function POST(req: NextRequest) {
       payment_method_types: ["card"],
       mode: "payment",
       shipping_address_collection: {
-        allowed_countries: ["US", "CA"],
+        allowed_countries: ["VN", "US"],
       },
       shipping_options: [
-        { shipping_rate: "shr_1MfufhDgraNiyvtnDGef2uwK" },
-        { shipping_rate: "shr_1OpHFHDgraNiyvtnOY4vDjuY" },
+        { shipping_rate: "shr_1RBxecDfEBISgVbl6Oyyi3B4" },
+        { shipping_rate: "shr_1RBxdYDfEBISgVbls4DRG56B" },
       ],
-      line_items: cartItems.map((cartItem: any) => ({
-        price_data: {
-          currency: "cad",
-          product_data: {
-            name: cartItem.item.title,
-            metadata: {
-              productId: cartItem.item._id,
-              ...(cartItem.size && { size: cartItem.size }),
-              ...(cartItem.color && { color: cartItem.color }),
+      line_items: cartItems.map((cartItem: any) => {
+        const price =
+          typeof cartItem.item.price === "object" &&
+          cartItem.item.price.$numberDecimal
+            ? parseFloat(cartItem.item.price.$numberDecimal)
+            : Number(cartItem.item.price);
+
+        return {
+          price_data: {
+            currency: "vnd",
+            product_data: {
+              name: cartItem.item.title,
+              metadata: {
+                productId: cartItem.item._id,
+                ...(cartItem.size && { size: cartItem.size }),
+                ...(cartItem.color && { color: cartItem.color }),
+              },
             },
+            unit_amount: Math.round(price * 1),
           },
-          unit_amount: cartItem.item.price * 100,
-        },
-        quantity: cartItem.quantity,
-      })),
+          quantity: cartItem.quantity,
+        };
+      }),
       client_reference_id: customer.clerkId,
       success_url: `${process.env.ECOMMERCE_STORE_URL}/payment_success`,
       cancel_url: `${process.env.ECOMMERCE_STORE_URL}/cart`,

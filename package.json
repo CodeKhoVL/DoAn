@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-  "build": "next build",
-  "start": "next start",
-  "lint": "next lint"
-},
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
   "dependencies": {
     "@clerk/nextjs": "^6.12.6",
     "@hookform/resolvers": "^3.10.0",
@@ -32,7 +32,7 @@
     "react-hot": "^0.0.1",
     "react-hot-toast": "^2.5.2",
     "recharts": "^2.12.2",
-    "stripe": "^14.19.0",
+    "stripe": "^14.25.0",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "toast": "^0.5.4",
