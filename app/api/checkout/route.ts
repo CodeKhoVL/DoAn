@@ -15,8 +15,15 @@ export async function POST(req: NextRequest) {
   try {
     const { cartItems, customer } = await req.json();
 
+    console.log("📦 Received cartItems:", JSON.stringify(cartItems, null, 2));
+    console.log("👤 Received customer:", customer);
+
     if (!cartItems || !customer) {
-      return new NextResponse("Not enough data to checkout", { status: 400 });
+      console.warn("⚠️ Thiếu dữ liệu cart hoặc customer");
+      return new NextResponse("Not enough data to checkout", {
+        status: 400,
+        headers: corsHeaders,
+      });
     }
 
     const session = await stripe.checkout.sessions.create({
@@ -26,40 +33,47 @@ export async function POST(req: NextRequest) {
         allowed_countries: ["VN", "US"],
       },
       shipping_options: [
-        { shipping_rate: "shr_1RBxecDfEBISgVbl6Oyyi3B4" },
-        { shipping_rate: "shr_1RBxdYDfEBISgVbls4DRG56B" },
+        { shipping_rate: "shr_1RCHd9Ra98mO2gvI3TUgVBwD" },
+        { shipping_rate: "shr_1RCHcgRa98mO2gvIo2whqOte" },
       ],
       line_items: cartItems.map((cartItem: any) => {
+        const rawPrice = cartItem.item.price;
         const price =
-          typeof cartItem.item.price === "object" &&
-          cartItem.item.price.$numberDecimal
-            ? parseFloat(cartItem.item.price.$numberDecimal)
-            : Number(cartItem.item.price);
+          typeof rawPrice === "object" && rawPrice?.$numberDecimal
+            ? parseFloat(rawPrice.$numberDecimal)
+            : Number(rawPrice);
 
-        return {
+        const item = {
           price_data: {
             currency: "vnd",
             product_data: {
-              name: cartItem.item.title,
+              name: cartItem.item.title || "No name",
               metadata: {
-                productId: cartItem.item._id,
+                productId: cartItem.item._id || "unknown",
                 ...(cartItem.size && { size: cartItem.size }),
                 ...(cartItem.color && { color: cartItem.color }),
               },
             },
             unit_amount: Math.round(price * 1),
           },
-          quantity: cartItem.quantity,
+          quantity: cartItem.quantity || 1,
         };
+
+        console.log("🧾 Stripe Line Item:", item);
+        return item;
       }),
       client_reference_id: customer.clerkId,
       success_url: `${process.env.ECOMMERCE_STORE_URL}/payment_success`,
       cancel_url: `${process.env.ECOMMERCE_STORE_URL}/cart`,
     });
 
+    console.log("✅ Stripe session created:", session.id);
     return NextResponse.json(session, { headers: corsHeaders });
-  } catch (err) {
-    console.log("[checkout_POST]", err);
-    return new NextResponse("Internal Server Error", { status: 500 });
+  } catch (err: any) {
+    console.error("❌ [checkout_POST] Internal error:", err.message || err);
+    return new NextResponse("Internal Server Error", {
+      status: 500,
+      headers: corsHeaders,
+    });
   }
 }
