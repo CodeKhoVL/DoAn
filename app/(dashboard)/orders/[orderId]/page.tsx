@@ -7,8 +7,14 @@ const OrderDetails = async ({ params }: { params: { orderId: string } }) => {
   );
   const { orderDetails, customer } = await res.json();
 
-  const { street, city, state, postalCode, country } =
-    orderDetails.shippingAddress;
+  // ✅ Tránh lỗi nếu shippingAddress bị null
+  const {
+    street = "Em đang fix",
+    city = "Em đang fix",
+    state = "Em đang Fix",
+    postalCode = "Em đang fix",
+    country = "Em đang fix",
+  } = orderDetails.shippingAddress || {};
 
   return (
     <div className="flex flex-col p-10 gap-5">
@@ -27,7 +33,9 @@ const OrderDetails = async ({ params }: { params: { orderId: string } }) => {
       </p>
       <p className="text-base-bold">
         Cái giá phải trả:{" "}
-        <span className="text-base-medium">${orderDetails.totalAmount}</span>
+        <span className="text-base-medium">
+          {orderDetails.totalAmount.toLocaleString("vi-VN")}₫
+        </span>
       </p>
 
       <DataTable

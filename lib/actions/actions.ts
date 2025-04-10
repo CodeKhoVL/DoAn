@@ -29,11 +29,10 @@ export const getSalesPerMonth = async () => {
     return acc
   }, {})
 
-  const graphData = Array.from({ length: 12}, (_, i) => {
-    const month = new Intl.DateTimeFormat('en-US', { month: 'short' }).format(new Date(0, i))
-    // if i === 5 => month = "Jun"
-    return { name: month, sales: salesPerMonth[i] || 0 }
-  })
+  const graphData = Array.from({ length: 12 }, (_, i) => {
+    const month = new Intl.DateTimeFormat("vi-VN", { month: "long" }).format(new Date(0, i));
+    return { name: month, sales: salesPerMonth[i] || 0 };
+  });
 
   return graphData
 }
