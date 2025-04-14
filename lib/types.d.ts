@@ -28,13 +28,15 @@ type OrderColumnType = {
   products: number;
   totalAmount: number;
   createdAt: string;
+  orderStatus: 'pending' | 'confirmed' | 'cancelled' | 'completed';
 }
 
 type OrderItemType = {
-  product: ProductType
-  color: string;
-  size: string;
+  product: ProductType;
   quantity: number;
+  borrowDuration: number;
+  returnDate: Date;
+  status: 'pending' | 'confirmed' | 'borrowed' | 'returned' | 'overdue';
 }
 
 type CustomerType = {
@@ -42,3 +44,16 @@ type CustomerType = {
   name: string;
   email: string;
 }
+
+type ReservationType = {
+  _id: string;
+  userId: string;
+  product: ProductType;
+  status: 'pending' | 'approved' | 'rejected' | 'completed';
+  reservationDate: Date;
+  pickupDate: Date;
+  returnDate: Date;
+  note?: string;
+  createdAt: Date;
+  updatedAt: Date;
+};

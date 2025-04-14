@@ -3,34 +3,77 @@ import { stripe } from "@/lib/stripe";
 import { connectToDB } from "@/lib/mongoDB";
 import Customer from "@/lib/models/Customer";
 import Order from "@/lib/models/Order";
+import BookReservation from "@/lib/models/BookReservation";
 
-// Định nghĩa kiểu dữ liệu cho orderItems
 interface OrderItem {
-  product: string | null;
-  color: string;
-  size: string;
+  product: string;
   quantity: number;
+  borrowDuration: number;
+  status: 'pending' | 'confirmed' | 'borrowed' | 'returned' | 'overdue';
 }
 
 export async function POST(req: NextRequest) {
   try {
-    console.log("✅ Webhook received");
+    const text = await req.text();
+    let body;
+    
+    try {
+      body = JSON.parse(text);
+    } catch (e) {
+      console.log("Raw body received:", text);
+      body = {};
+    }
 
-    const rawBody = await req.text();
+    // Handle reservation webhook
+    if (body.type === 'reservation.created') {
+      await connectToDB();
+      console.log("📚 Processing reservation webhook");
+      
+      const { reservation, userName, userEmail } = body.data;
+      
+      // Create or update customer
+      let customer = await Customer.findOne({ clerkId: reservation.userId });
+      if (!customer) {
+        customer = await Customer.create({
+          clerkId: reservation.userId,
+          name: userName || 'Unknown',
+          email: userEmail || 'unknown@example.com'
+        });
+      }
+
+      // Create new order from reservation
+      const order = await Order.create({
+        customerClerkId: reservation.userId,
+        products: [{
+          product: reservation.productId,
+          quantity: 1,
+          borrowDuration: Math.ceil(
+            (new Date(reservation.returnDate).getTime() - new Date(reservation.pickupDate).getTime()) 
+            / (1000 * 60 * 60 * 24)
+          ),
+          status: 'pending'
+        }],
+        totalAmount: 0,
+        orderStatus: 'pending',
+        note: reservation.note
+      });
+
+      console.log("✅ Created order from reservation:", order._id);
+      return NextResponse.json({ success: true });
+    }
+
+    // Handle Stripe webhook
     const signature = req.headers.get("Stripe-Signature");
-
     if (!signature || !process.env.STRIPE_WEBHOOK_SECRET) {
       console.error("❌ Missing Stripe-Signature or Webhook Secret");
       return new NextResponse("Unauthorized", { status: 400 });
     }
 
     const event = stripe.webhooks.constructEvent(
-      rawBody,
+      text,
       signature,
       process.env.STRIPE_WEBHOOK_SECRET
     );
-
-    console.log("🔔 Event Type:", event.type);
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
@@ -55,15 +98,11 @@ export async function POST(req: NextRequest) {
         email: session.customer_details?.email || "unknown@example.com",
       };
 
-      // Cải thiện việc xử lý địa chỉ - lấy từ customer_details thay vì shipping_details
       let shippingAddress = null;
-
-      // Kiểm tra cả customer_details.address
       if (session.customer_details && session.customer_details.address) {
         const address = session.customer_details.address;
         console.log("📦 Customer address found:", address);
         
-        // Chỉ tạo đối tượng shippingAddress nếu có ít nhất một trường có giá trị
         if (address.line1 || address.city || address.state || address.postal_code || address.country) {
           shippingAddress = {
             street: address.line1 || "",
@@ -73,22 +112,6 @@ export async function POST(req: NextRequest) {
             country: address.country || "",
           };
         }
-      } else if (session.shipping_details && session.shipping_details.address) {
-        // Giữ lại code kiểm tra shipping_details như backup
-        const shipping = session.shipping_details.address;
-        console.log("📦 Shipping details found:", shipping);
-        
-        if (shipping.line1 || shipping.city || shipping.state || shipping.postal_code || shipping.country) {
-          shippingAddress = {
-            street: shipping.line1 || "",
-            city: shipping.city || "",
-            state: shipping.state || "",
-            postalCode: shipping.postal_code || "",
-            country: shipping.country || "",
-          };
-        }
-      } else {
-        console.log("⚠️ No address information in session");
       }
 
       const lineItems = fullSession.line_items?.data || [];
@@ -100,9 +123,9 @@ export async function POST(req: NextRequest) {
         
         return {
           product: metadata.productId || null,
-          color: metadata.color || "N/A",
-          size: metadata.size || "N/A",
           quantity: item.quantity || 1,
+          borrowDuration: metadata.borrowDuration ? parseInt(metadata.borrowDuration) : 7, // Default 7 days
+          status: 'pending'
         };
       });
 
@@ -112,9 +135,8 @@ export async function POST(req: NextRequest) {
       const newOrder = new Order({
         customerClerkId: customerInfo.clerkId,
         products: orderItems,
-        shippingAddress: shippingAddress,  // Có thể null nếu không có thông tin
-        shippingRate: session.shipping_cost?.shipping_rate || "",
-        totalAmount: session.amount_total ? session.amount_total / 100 : 0, // Đổi /1 thành /100
+        shippingAddress: shippingAddress,
+        totalAmount: session.amount_total ? session.amount_total / 100 : 0,
       });
 
       await newOrder.save();
@@ -137,9 +159,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return new NextResponse("✅ Webhook handled", { status: 200 });
-  } catch (err: any) {
-    console.error("❌ [webhooks_POST]", err.message);
-    return new NextResponse("❌ Webhook error", { status: 500 });
+    return NextResponse.json({ received: true });
+  } catch (error) {
+    console.error('Webhook error:', error);
+    return NextResponse.json(
+      { error: 'Webhook handler failed' },
+      { status: 500 }
+    );
   }
 }

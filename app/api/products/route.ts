@@ -5,14 +5,14 @@ import { connectToDB } from "@/lib/mongoDB";
 import Product from "@/lib/models/Product";
 import Collection from "@/lib/models/Collection";
 
-// Hàm tiện ích để đảm bảo giá trị là mảng
+// Ensure values are arrays
 const ensureArray = (value: any): any[] => {
   if (!value) return [];
   if (!Array.isArray(value)) return [];
   return value;
 };
 
-// Đảm bảo giá trị là số
+// Ensure values are numbers
 const ensureNumber = (value: any): number => {
   if (typeof value === 'number') return value;
   if (typeof value === 'string') {
@@ -32,6 +32,18 @@ const ensureNumber = (value: any): number => {
   return 0.1;
 };
 
+// Handle OPTIONS requests
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
+}
+
 export const POST = async (req: NextRequest) => {
   try {
     const { userId } = getAuth(req);
@@ -42,7 +54,7 @@ export const POST = async (req: NextRequest) => {
 
     await connectToDB();
 
-    // Đọc body và đảm bảo các giá trị mảng đều hợp lệ
+    // Read body and ensure array values are valid
     const body = await req.json();
     
     const {
@@ -58,10 +70,10 @@ export const POST = async (req: NextRequest) => {
       expense: rawExpense,
     } = body;
 
-    // Đảm bảo collections là mảng
+    // Ensure collections is an array
     const collections = ensureArray(rawCollections);
     
-    // Chuyển đổi price và expense thành số
+    // Convert price and expense to numbers
     const price = ensureNumber(rawPrice);
     const expense = ensureNumber(rawExpense);
 
@@ -71,7 +83,7 @@ export const POST = async (req: NextRequest) => {
       });
     }
 
-    // Tạo product mới với các giá trị mảng an toàn
+    // Create new product with safe array values
     const newProduct = await Product.create({
       title,
       description,
@@ -81,22 +93,21 @@ export const POST = async (req: NextRequest) => {
       tags: ensureArray(tags),
       sizes: ensureArray(sizes),
       colors: ensureArray(colors),
-      price,  // Đã được chuyển đổi thành số
-      expense, // Đã được chuyển đổi thành số
+      price,
+      expense,
     });
 
     await newProduct.save();
 
-    // Cập nhật collections - chỉ xử lý nếu có collections
+    // Update collections if they exist
     if (collections && collections.length > 0) {
       try {
         await Promise.all(
           collections.map(async (collectionId) => {
-            if (!collectionId) return; // Bỏ qua nếu ID không hợp lệ
+            if (!collectionId) return;
             
             const collection = await Collection.findById(collectionId);
             if (collection) {
-              // Kiểm tra xem product đã tồn tại trong collection chưa
               if (!collection.products.includes(newProduct._id)) {
                 collection.products.push(newProduct._id);
                 await collection.save();
@@ -106,11 +117,17 @@ export const POST = async (req: NextRequest) => {
         );
       } catch (collectionError) {
         console.error("Error updating collections:", collectionError);
-        // Tiếp tục thực hiện mà không dừng lại
       }
     }
 
-    return NextResponse.json(newProduct, { status: 200 });
+    return NextResponse.json(newProduct, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      },
+    });
   } catch (err) {
     console.log("[products_POST]", err);
     return new NextResponse("Internal Error", { status: 500 });
@@ -119,31 +136,41 @@ export const POST = async (req: NextRequest) => {
 
 export const GET = async (req: NextRequest) => {
   try {
+    console.log("Fetching products...");
     await connectToDB();
 
     const products = await Product.find()
       .sort({ createdAt: "desc" })
       .populate({ path: "collections", model: Collection });
 
-    // Đảm bảo response trả về đúng cấu trúc
+    // Ensure response has consistent structure
     const safeProducts = products.map(product => {
       const productObj = product.toObject();
       
-      // Đảm bảo các trường mảng luôn là mảng
+      // Ensure array fields are arrays
       productObj.collections = ensureArray(productObj.collections);
       productObj.media = ensureArray(productObj.media);
       productObj.tags = ensureArray(productObj.tags);
       productObj.sizes = ensureArray(productObj.sizes);
       productObj.colors = ensureArray(productObj.colors);
       
-      // Đảm bảo price và expense là số
+      // Ensure price and expense are numbers
       productObj.price = ensureNumber(productObj.price);
       productObj.expense = ensureNumber(productObj.expense);
       
       return productObj;
     });
 
-    return NextResponse.json(safeProducts, { status: 200 });
+    console.log(`Successfully fetched ${safeProducts.length} products`);
+    
+    return NextResponse.json(safeProducts, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      },
+    });
   } catch (err) {
     console.log("[products_GET]", err);
     return new NextResponse("Internal Error", { status: 500 });

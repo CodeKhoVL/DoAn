@@ -8,9 +8,14 @@ const orderSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "Product",
       },
-      color: String,
-      size: String,
       quantity: Number,
+      borrowDuration: Number, // Số ngày mượn
+      returnDate: Date, // Ngày phải trả
+      status: {
+        type: String,
+        enum: ['pending', 'confirmed', 'borrowed', 'returned', 'overdue'],
+        default: 'pending'
+      }
     },
   ],
   shippingAddress: {
@@ -20,12 +25,21 @@ const orderSchema = new mongoose.Schema({
     postalCode: String,
     country: String,
   },
-  shippingRate: String,
-  totalAmount: Number,
+  note: String,
+  totalAmount: Number, // Phí đặt cọc
+  orderStatus: {
+    type: String,
+    enum: ['pending', 'confirmed', 'cancelled', 'completed'],
+    default: 'pending'
+  },
   createdAt: {
     type: Date,
     default: Date.now,
   },
+  updatedAt: {
+    type: Date,
+    default: Date.now,
+  }
 });
 
 const Order = mongoose.models.Order || mongoose.model("Order", orderSchema);

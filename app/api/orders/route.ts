@@ -1,30 +1,32 @@
 import Customer from "@/lib/models/Customer";
 import Order from "@/lib/models/Order";
 import { connectToDB } from "@/lib/mongoDB";
-
 import { NextRequest, NextResponse } from "next/server";
 import { format } from "date-fns";
 
 export const GET = async (req: NextRequest) => {
   try {
-    await connectToDB()
+    await connectToDB();
 
-    const orders = await Order.find().sort({ createdAt: "desc" })
+    const orders = await Order.find()
+      .populate('products.product')
+      .sort({ createdAt: "desc" });
 
     const orderDetails = await Promise.all(orders.map(async (order) => {
-      const customer = await Customer.findOne({ clerkId: order.customerClerkId })
+      const customer = await Customer.findOne({ clerkId: order.customerClerkId });
       return {
         _id: order._id,
-        customer: customer.name,
+        customer: customer?.name || 'Unknown',
         products: order.products.length,
         totalAmount: order.totalAmount,
+        orderStatus: order.orderStatus,
         createdAt: format(order.createdAt, "MMM do, yyyy")
-      }
-    }))
+      };
+    }));
 
     return NextResponse.json(orderDetails, { status: 200 });
   } catch (err) {
-    console.log("[orders_GET]", err)
+    console.log("[orders_GET]", err);
     return new NextResponse("Internal Server Error", { status: 500 });
   }
 }

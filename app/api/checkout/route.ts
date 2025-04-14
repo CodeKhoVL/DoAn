@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
               name: cartItem.item.title || "No name",
               metadata: {
                 productId: cartItem.item._id || "unknown",
+                borrowDuration: cartItem.borrowDuration || "7",
                 ...(cartItem.size && { size: cartItem.size }),
                 ...(cartItem.color && { color: cartItem.color }),
               },
