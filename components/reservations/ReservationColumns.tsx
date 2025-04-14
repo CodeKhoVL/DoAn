@@ -13,12 +13,12 @@ export const columns: ColumnDef<ReservationType>[] = [
   {
     accessorKey: "pickupDate",
     header: "Ngày mượn",
-    cell: ({ row }) => format(new Date(row.original.pickupDate), "dd/MM/yyyy")
+    cell: ({ row }) => format(new Date(row.original.pickupDate), "dd/MM/yyyy"),
   },
   {
     accessorKey: "returnDate",
     header: "Ngày trả",
-    cell: ({ row }) => format(new Date(row.original.returnDate), "dd/MM/yyyy")
+    cell: ({ row }) => format(new Date(row.original.returnDate), "dd/MM/yyyy"),
   },
   {
     accessorKey: "status",
@@ -26,7 +26,7 @@ export const columns: ColumnDef<ReservationType>[] = [
     cell: ({ row }) => {
       const status = row.original.status;
       let color = "";
-      switch(status) {
+      switch (status) {
         case "pending":
           color = "text-yellow-600";
           break;
@@ -41,7 +41,7 @@ export const columns: ColumnDef<ReservationType>[] = [
           break;
       }
       return <span className={color}>{status}</span>;
-    }
+    },
   },
   {
     id: "actions",
@@ -62,7 +62,7 @@ export const columns: ColumnDef<ReservationType>[] = [
           if (!res.ok) {
             throw new Error("Failed to update reservation status");
           }
-          
+
           toast.success("Cập nhật trạng thái thành công");
           setTimeout(() => {
             window.location.reload();

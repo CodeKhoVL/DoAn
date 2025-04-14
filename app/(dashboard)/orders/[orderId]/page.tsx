@@ -36,7 +36,7 @@ const OrderDetails = ({ params }: { params: { orderId: string } }) => {
       });
 
       if (!res.ok) throw new Error("Failed to update order status");
-      
+
       toast.success("Order status updated successfully");
       fetchOrderDetails();
     } catch (err) {
@@ -59,41 +59,38 @@ const OrderDetails = ({ params }: { params: { orderId: string } }) => {
           {orderDetails?.orderStatus === "pending" && (
             <>
               <Button onClick={() => updateOrderStatus("confirmed")}>
-                Confirm Order
+                Xác nhận đơn
               </Button>
-              <Button 
+              <Button
                 variant="destructive"
                 onClick={() => updateOrderStatus("cancelled")}
               >
-                Cancel Order
+                Hủy đơn
               </Button>
             </>
           )}
-          {orderDetails?.orderStatus === "confirmed" && (
-            <Button onClick={() => updateOrderStatus("completed")}>
-              Mark as Completed
-            </Button>
-          )}
         </div>
       </div>
-      
-      <div className="grid gap-4">
-        <p><span className="font-bold">Order ID:</span> {orderDetails?._id}</p>
-        <p><span className="font-bold">Customer:</span> {customer?.name}</p>
-        <p><span className="font-bold">Status:</span> {orderDetails?.orderStatus}</p>
-        <p><span className="font-bold">Total Amount:</span> {orderDetails?.totalAmount?.toLocaleString("vi-VN")}₫</p>
-        <p><span className="font-bold">Created At:</span> {new Date(orderDetails?.createdAt).toLocaleString("vi-VN")}</p>
-      </div>
 
-      <div className="mt-5">
-        <h2 className="text-xl font-bold mb-3">Borrowed Books</h2>
-        {orderDetails?.products && (
-          <DataTable
-            columns={columns}
-            data={orderDetails.products}
-            searchKey="product.title"
-          />
-        )}
+      <div className="grid gap-4">
+        <p>
+          <span className="font-bold">Order ID:</span> {orderDetails?._id}
+        </p>
+        <p>
+          <span className="font-bold">Khách hàng:</span> {customer?.name}
+        </p>
+        <p>
+          <span className="font-bold">Trạng thái:</span>{" "}
+          {orderDetails?.orderStatus}
+        </p>
+        <p>
+          <span className="font-bold">Giá:</span>{" "}
+          {orderDetails?.totalAmount?.toLocaleString("vi-VN")}₫
+        </p>
+        <p>
+          <span className="font-bold">Ngày tháng:</span>{" "}
+          {new Date(orderDetails?.createdAt).toLocaleString("vi-VN")}
+        </p>
       </div>
     </div>
   );

@@ -4,7 +4,7 @@ import {
   ShoppingBag,
   Tag,
   UsersRound,
-  BookOpen
+  BookOpen,
 } from "lucide-react";
 
 export const navLinks = [
@@ -16,12 +16,12 @@ export const navLinks = [
   {
     url: "/collections",
     icon: <Shapes />,
-    label: "Collections",
+    label: "Danh mục",
   },
   {
     url: "/products",
     icon: <Tag />,
-    label: "Products",
+    label: "Sản phẩm",
   },
   {
     url: "/orders",
@@ -31,7 +31,7 @@ export const navLinks = [
   {
     url: "/customers",
     icon: <UsersRound />,
-    label: "Customers",
+    label: "Khách hàng",
   },
   {
     url: "/reservations",

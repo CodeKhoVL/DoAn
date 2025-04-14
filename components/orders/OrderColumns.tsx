@@ -8,7 +8,10 @@ export const columns: ColumnDef<OrderColumnType>[] = [
     accessorKey: "_id",
     header: "ID",
     cell: ({ row }) => (
-      <Link href={`/orders/${row.original._id}`} className="text-blue underline">
+      <Link
+        href={`/orders/${row.original._id}`}
+        className="text-blue underline"
+      >
         {row.original._id}
       </Link>
     ),

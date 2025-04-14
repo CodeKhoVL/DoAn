@@ -15,11 +15,11 @@ export default function ReservationsPage() {
       const res = await fetch("/api/reservations", {
         method: "GET",
       });
-      
+
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
-      
+
       const data = await res.json();
       setReservations(data);
     } catch (err) {
@@ -39,10 +39,10 @@ export default function ReservationsPage() {
     <div className="px-10 py-5">
       <p className="text-heading2-bold">Quản lý đơn mượn sách</p>
       <Separator className="bg-grey-1 my-4" />
-      <DataTable 
-        columns={columns} 
-        data={reservations} 
-        searchKey="product.title" 
+      <DataTable
+        columns={columns}
+        data={reservations}
+        searchKey="product.title"
       />
     </div>
   );

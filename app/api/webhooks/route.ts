@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
           ),
           status: 'pending'
         }],
-        totalAmount: 0,
+        totalAmount: 0, // Giá trị mặc định cho reservation
         orderStatus: 'pending',
         note: reservation.note
       });
@@ -102,7 +102,6 @@ export async function POST(req: NextRequest) {
       if (session.customer_details && session.customer_details.address) {
         const address = session.customer_details.address;
         console.log("📦 Customer address found:", address);
-        
         if (address.line1 || address.city || address.state || address.postal_code || address.country) {
           shippingAddress = {
             street: address.line1 || "",
@@ -136,7 +135,7 @@ export async function POST(req: NextRequest) {
         customerClerkId: customerInfo.clerkId,
         products: orderItems,
         shippingAddress: shippingAddress,
-        totalAmount: session.amount_total ? session.amount_total / 100 : 0,
+        totalAmount: session.amount_total ? Math.round(session.amount_total / 100) : 0, // Chuyển từ xu sang VND
       });
 
       await newOrder.save();
@@ -161,9 +160,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error('Webhook error:', error);
-    return NextResponse.json(
-      { error: 'Webhook handler failed' },
+    console.error("❌ Webhook error:", error);
+    return new NextResponse(
+      JSON.stringify({ error: "Webhook handler failed" }),
       { status: 500 }
     );
   }

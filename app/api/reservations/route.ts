@@ -7,10 +7,23 @@ export async function GET(req: NextRequest) {
     await connectToDB();
 
     const reservations = await BookReservation.find()
-      .populate('productId')
+      .populate({
+        path: 'productId',
+        select: 'title media category price'
+      })
       .sort({ createdAt: -1 });
 
-    return NextResponse.json(reservations);
+    // Transform data to match the expected format
+    const formattedReservations = reservations.map(reservation => {
+      const reservationObj = reservation.toObject();
+      return {
+        ...reservationObj,
+        product: reservationObj.productId, // Move productId data to product field
+        productId: reservationObj.productId._id // Keep the ID in productId
+      };
+    });
+
+    return NextResponse.json(formattedReservations);
   } catch (error) {
     console.error("[RESERVATIONS_GET]", error);
     return NextResponse.json(

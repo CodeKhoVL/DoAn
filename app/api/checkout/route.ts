@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
                 ...(cartItem.color && { color: cartItem.color }),
               },
             },
-            unit_amount: Math.round(price * 1),
+            unit_amount: Math.round(price * 100), // Nhân với 100 vì Stripe làm việc với đơn vị xu
           },
           quantity: cartItem.quantity || 1,
         };
@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
         return item;
       }),
       client_reference_id: customer.clerkId,
+      customer_email: customer.email,
       success_url: `${process.env.ECOMMERCE_STORE_URL}/payment_success`,
       cancel_url: `${process.env.ECOMMERCE_STORE_URL}/cart`,
     });
