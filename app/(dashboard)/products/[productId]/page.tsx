@@ -25,11 +25,7 @@ const ProductDetails = ({ params }: { params: { productId: string } }) => {
     getProductDetails();
   }, [params.productId]); // Add productId as dependency since getProductDetails uses it
 
-  return loading ? (
-    <Loader />
-  ) : (
-    <ProductForm initialData={productDetails} />
-  );
+  return loading ? <Loader /> : <ProductForm initialData={productDetails} />;
 };
 
 export default ProductDetails;

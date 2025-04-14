@@ -6,17 +6,21 @@ import { Button } from "@/components/ui/button";
 import { toast } from "react-hot-toast";
 
 // Create a separate component for the actions cell
-const OrderItemActions = ({ status, orderId, productId }: { 
+const OrderItemActions = ({
+  status,
+  orderId,
+  productId,
+}: {
   status: string;
   orderId: string;
   productId: string;
 }) => {
   const updateBookStatus = async (newStatus: string) => {
     try {
-      console.log('Updating book status:', {
+      console.log("Updating book status:", {
         orderId,
         productId,
-        newStatus
+        newStatus,
       });
 
       const res = await fetch(`/api/orders/${orderId}`, {
@@ -34,7 +38,7 @@ const OrderItemActions = ({ status, orderId, productId }: {
         const error = await res.json();
         throw new Error(error.message || "Failed to update book status");
       }
-      
+
       toast.success("Book status updated successfully");
       // Use a short timeout to ensure the state is updated on the server
       setTimeout(() => {
@@ -42,7 +46,9 @@ const OrderItemActions = ({ status, orderId, productId }: {
       }, 500);
     } catch (err) {
       console.error("[bookStatus_UPDATE]", err);
-      toast.error(err instanceof Error ? err.message : "Failed to update book status");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to update book status"
+      );
     }
   };
 
@@ -107,7 +113,7 @@ export const createColumns = (orderId: string): ColumnDef<OrderItemType>[] => [
     cell: ({ row }) => {
       const date = row.original.returnDate;
       return date ? format(new Date(date), "MMM dd, yyyy") : "-";
-    }
+    },
   },
   {
     accessorKey: "status",
@@ -115,7 +121,7 @@ export const createColumns = (orderId: string): ColumnDef<OrderItemType>[] => [
     cell: ({ row }) => {
       const status = row.original.status;
       let color = "";
-      switch(status) {
+      switch (status) {
         case "pending":
           color = "text-yellow-600";
           break;
@@ -133,7 +139,7 @@ export const createColumns = (orderId: string): ColumnDef<OrderItemType>[] => [
           break;
       }
       return <span className={color}>{status}</span>;
-    }
+    },
   },
   {
     id: "actions",
