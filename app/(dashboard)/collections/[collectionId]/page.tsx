@@ -24,7 +24,7 @@ const CollectionDetails = ({ params }: { params: { collectionId: string }}) => {
 
   useEffect(() => {
     getCollectionDetails()
-  }, [])
+  }, [params.collectionId]) // Add collectionId as dependency since getCollectionDetails uses it
 
   return loading ? <Loader /> : (
     <CollectionForm initialData={collectionDetails}/>

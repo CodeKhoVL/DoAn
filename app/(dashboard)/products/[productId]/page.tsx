@@ -23,7 +23,7 @@ const ProductDetails = ({ params }: { params: { productId: string } }) => {
 
   useEffect(() => {
     getProductDetails();
-  }, []);
+  }, [params.productId]); // Add productId as dependency since getProductDetails uses it
 
   return loading ? (
     <Loader />

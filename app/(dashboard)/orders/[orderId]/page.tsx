@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { DataTable } from "@/components/custom ui/DataTable";
-import { columns } from "@/components/orderItems/OrderItemsColums";
+import { createColumns } from "@/components/orderItems/OrderItemsColums";
 import { Button } from "@/components/ui/button";
 import { toast } from "react-hot-toast";
 import Loader from "@/components/custom ui/Loader";
@@ -47,11 +47,11 @@ const OrderDetails = ({ params }: { params: { orderId: string } }) => {
 
   useEffect(() => {
     fetchOrderDetails();
-  }, [params.orderId]);
+  }, [params.orderId]); // Add orderId as dependency since fetchOrderDetails uses it
 
-  if (loading) return <Loader />;
-
-  return (
+  return loading ? (
+    <Loader />
+  ) : (
     <div className="flex flex-col p-10 gap-5">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Order Details</h1>
@@ -92,6 +92,12 @@ const OrderDetails = ({ params }: { params: { orderId: string } }) => {
           {new Date(orderDetails?.createdAt).toLocaleString("vi-VN")}
         </p>
       </div>
+
+      <DataTable
+        columns={createColumns(params.orderId)}
+        data={orderDetails?.products || []}
+        searchKey="product.title"
+      />
     </div>
   );
 };
