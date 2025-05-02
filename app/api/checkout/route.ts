@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
                 ...(cartItem.color && { color: cartItem.color }),
               },
             },
-            unit_amount: Math.round(price * 100), // Nhân với 100 vì Stripe làm việc với đơn vị xu
+            unit_amount: Math.round(price), // VND không cần nhân với 100 vì không có xu
           },
           quantity: cartItem.quantity || 1,
         };

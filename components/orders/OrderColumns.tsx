@@ -2,6 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
+import { formatPriceDisplay } from "@/lib/utils";
 
 export const columns: ColumnDef<OrderColumnType>[] = [
   {
@@ -26,9 +27,9 @@ export const columns: ColumnDef<OrderColumnType>[] = [
   },
   {
     accessorKey: "totalAmount",
-    header: "Tiền đặt cọc",
+    header: "Đã thanh toán",
     cell: ({ row }) => (
-      <span>{row.original.totalAmount.toLocaleString("vi-VN")} VNĐ</span>
+      <span>{formatPriceDisplay(row.original.totalAmount)} VNĐ</span>
     ),
   },
   {

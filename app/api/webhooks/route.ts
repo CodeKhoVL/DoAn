@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
         customerClerkId: customerInfo.clerkId,
         products: orderItems,
         shippingAddress: shippingAddress,
-        totalAmount: session.amount_total ? Math.round(session.amount_total / 100) : 0, // Chuyển từ xu sang VND
+        totalAmount: session.amount_total || 0, // Không chia cho 100 vì VND không có xu
       });
 
       await newOrder.save();

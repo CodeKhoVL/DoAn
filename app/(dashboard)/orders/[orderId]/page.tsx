@@ -6,6 +6,7 @@ import { createColumns } from "@/components/orderItems/OrderItemsColums";
 import { Button } from "@/components/ui/button";
 import { toast } from "react-hot-toast";
 import Loader from "@/components/custom ui/Loader";
+import { formatPriceDisplay } from "@/lib/utils";
 
 const OrderDetails = ({ params }: { params: { orderId: string } }) => {
   const [orderDetails, setOrderDetails] = useState<any>(null);
@@ -85,7 +86,11 @@ const OrderDetails = ({ params }: { params: { orderId: string } }) => {
         </p>
         <p>
           <span className="font-bold">Giá:</span>{" "}
-          {orderDetails?.totalAmount?.toLocaleString("vi-VN")}₫
+          {formatPriceDisplay(orderDetails?.totalAmount)}₫
+        </p>
+        <p>
+          <span className="font-bold">Đã thanh toán:</span>{" "}
+          {(orderDetails?.totalAmount || 0).toLocaleString("vi-VN")} VNĐ
         </p>
         <p>
           <span className="font-bold">Ngày tháng:</span>{" "}
